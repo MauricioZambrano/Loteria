@@ -26,6 +26,7 @@ export const GAME_MODE_COLORS: Record<GameMode, string> = {
 
 export interface GameState {
   sessionId: string;
+  code?: number;      // 6-digit join code shown on admin panel
   drawn: number[];    // Card IDs in draw order
   mode: GameMode;
   updatedAt: string;

@@ -29,33 +29,48 @@ interface UseGameStateReturn {
   setGameState: (state: GameState) => void;
 }
 
-export function useGameState(): UseGameStateReturn {
+// targetSessionId controls fetch/subscribe behaviour:
+//   undefined  → admin mode: use localStorage session (or fetch latest)
+//   null       → display waiting for code: skip fetch, stay loading=false
+//   string     → display with known session: fetch that session, filter broadcasts
+export function useGameState(targetSessionId?: string | null): UseGameStateReturn {
   const [gameState, setGameState] = useState<GameState>(EMPTY_GAME_STATE);
   const [isLoading, setIsLoading] = useState(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   async function fetchAndSync() {
-    const savedId = getSavedSessionId();
-    let query = getSupabase().from(TABLE_NAME).select("*");
-
-    // If we have a saved session ID, fetch that specific session
-    if (savedId) {
-      query = query.eq("id", savedId);
-    } else {
-      query = query.order("updated_at", { ascending: false });
-    }
-
-    const { data, error } = await query.limit(1).single();
-
-    if (error || !data) {
-      // No session yet — keep empty state, admin will create one on first draw
+    // Display is waiting for the user to enter the code — nothing to fetch yet
+    if (targetSessionId === null) {
       setIsLoading(false);
       return;
     }
 
-    saveSessionId(data.id);
+    const sessionId = targetSessionId ?? getSavedSessionId();
+    let query = getSupabase().from(TABLE_NAME).select("*");
+
+    if (sessionId) {
+      query = query.eq("id", sessionId);
+    } else {
+      // Admin: no saved ID yet — fall back to most recent session
+      query = query.order("updated_at", { ascending: false });
+    }
+
+    const { data } = await query.limit(1).maybeSingle();
+
+    if (!data) {
+      // If we had a stale saved ID that no longer exists, clear it so a
+      // fresh session can be created by useAdmin on the next render.
+      if (targetSessionId === undefined && getSavedSessionId()) clearSessionId();
+      setIsLoading(false);
+      return;
+    }
+
+    // Only persist to admin localStorage when not using an explicit targetSessionId
+    if (targetSessionId === undefined) saveSessionId(data.id);
+
     setGameState({
       sessionId: data.id,
+      code: data.code ?? undefined,
       drawn: data.drawn ?? [],
       mode: data.mode ?? "libre",
       updatedAt: data.updated_at,
@@ -64,19 +79,26 @@ export function useGameState(): UseGameStateReturn {
   }
 
   function subscribe() {
+    if (targetSessionId === null) return;
+
     const channel = getSupabase().channel(CHANNEL_NAME, {
       config: { broadcast: { self: true } },
     });
 
     channel.on("broadcast", { event: "state_update" }, ({ payload }) => {
       const state = payload as GameState;
-      if (state.sessionId) saveSessionId(state.sessionId);
+
+      // Display: ignore broadcasts meant for other sessions
+      if (typeof targetSessionId === "string" && state.sessionId !== targetSessionId) return;
+
+      // Admin: keep localStorage up to date with the current session
+      if (targetSessionId === undefined && state.sessionId) saveSessionId(state.sessionId);
+
       setGameState(state);
     });
 
     channel.subscribe((status) => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        // Re-fetch from Postgres as fallback on channel error
         fetchAndSync();
       }
     });
@@ -88,8 +110,7 @@ export function useGameState(): UseGameStateReturn {
     fetchAndSync().then(() => subscribe());
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        // Re-sync when tab becomes visible again (e.g., laptop wakes from sleep)
+      if (document.visibilityState === "visible" && targetSessionId !== null) {
         fetchAndSync();
       }
     };
@@ -99,9 +120,12 @@ export function useGameState(): UseGameStateReturn {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (channelRef.current) {
         getSupabase().removeChannel(channelRef.current);
+        channelRef.current = null;
       }
     };
-  }, []);
+  // Re-run when targetSessionId changes (display enters the code)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetSessionId]);
 
   return { gameState, isLoading, setGameState };
 }

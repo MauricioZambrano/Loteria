@@ -4,12 +4,13 @@ import { useState } from "react";
 import { CardGrid } from "@/components/admin/CardGrid";
 import { ModeSelector } from "@/components/admin/ModeSelector";
 import { UndoButton } from "@/components/admin/UndoButton";
+import { HoldButton } from "@/components/shared/HoldButton";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useGameState } from "@/hooks/useGameState";
 
 export default function AdminPage() {
-  const { gameState, isLoading } = useGameState();
-  const { drawCard, undoCard, setMode, newGame } = useAdmin(gameState);
+  const { gameState, isLoading, setGameState } = useGameState();
+  const { drawCard, undoCard, setMode, newGame, clearBoard } = useAdmin(gameState, setGameState);
   const [searchQuery, setSearchQuery] = useState("");
 
   if (isLoading) {
@@ -22,13 +23,20 @@ export default function AdminPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Sticky header: mode selector + undo */}
+      {/* Sticky header: mode selector + code + undo */}
       <header className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-zinc-900 border-b border-zinc-800 px-3 py-2">
         <ModeSelector currentMode={gameState.mode} onModeChange={setMode} />
-        <UndoButton
-          disabled={gameState.drawn.length === 0}
-          onUndo={undoCard}
-        />
+        <div className="flex items-center gap-3">
+          {gameState.code && (
+            <span className="font-mono font-black text-lg tracking-widest text-white">
+              {String(gameState.code)}
+            </span>
+          )}
+          <UndoButton
+            disabled={gameState.drawn.length === 0}
+            onUndo={undoCard}
+          />
+        </div>
       </header>
 
       {/* Search bar */}
@@ -42,22 +50,23 @@ export default function AdminPage() {
         />
       </div>
 
-      {/* Game ID + card count */}
+      {/* Card count + session controls */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs text-zinc-400">
         <span>
           Cartas cantadas:{" "}
           <span className="font-bold text-zinc-200">{gameState.drawn.length}</span>
           {" / 54"}
         </span>
-        <div className="flex items-center gap-2">
-          {gameState.sessionId && (
-            <span className="font-mono text-zinc-500">
-              ID:{" "}
-              <span className="text-zinc-300">
-                {gameState.sessionId.slice(0, 8).toUpperCase()}
-              </span>
-            </span>
-          )}
+        <div className="flex gap-2">
+          <HoldButton
+            label="⟳ Limpiar"
+            onConfirm={clearBoard}
+            disabled={gameState.drawn.length === 0}
+            ariaLabel="Limpiar tablero (mantén presionado)"
+            className={gameState.drawn.length === 0 ? "bg-zinc-800 text-zinc-600 cursor-not-allowed" : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"}
+            holdClassName="bg-zinc-500 text-white"
+            fillClassName="bg-zinc-400"
+          />
           <button
             onClick={() => {
               if (confirm("¿Iniciar una nueva partida? Se perderá el progreso actual.")) {
