@@ -1,13 +1,15 @@
 import { GameMode, GAME_MODE_LABELS } from "@/lib/gameState";
 
-const MODES: GameMode[] = [
-  "libre",
-  "fila",
-  "columna",
-  "diagonal",
-  "esquinas",
-  "loteria",
-];
+const MODES: GameMode[] = ["fila", "columna", "diagonal", "esquinas", "loteria", "libre"];
+
+const MODE_ACTIVE_COLORS: Record<GameMode, string> = {
+  libre:    "bg-zinc-400 text-zinc-900",
+  fila:     "bg-blue-500 text-white",
+  columna:  "bg-purple-500 text-white",
+  diagonal: "bg-orange-500 text-white",
+  esquinas: "bg-green-500 text-white",
+  loteria:  "bg-red-500 text-white",
+};
 
 interface ModeSelectorProps {
   currentMode: GameMode;
@@ -22,9 +24,9 @@ export function ModeSelector({ currentMode, onModeChange }: ModeSelectorProps) {
           key={mode}
           onClick={() => onModeChange(mode)}
           className={[
-            "rounded-full px-2.5 py-1 text-xs font-semibold transition-all",
+            "rounded px-2 py-0.5 text-xs font-semibold transition-all",
             currentMode === mode
-              ? "bg-zinc-100 text-zinc-900"
+              ? MODE_ACTIVE_COLORS[mode]
               : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600",
           ].join(" ")}
         >

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { CardGrid } from "@/components/admin/CardGrid";
 import { ModeSelector } from "@/components/admin/ModeSelector";
-import { UndoButton } from "@/components/admin/UndoButton";
 import { HoldButton } from "@/components/shared/HoldButton";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useGameState } from "@/hooks/useGameState";
@@ -21,22 +20,21 @@ export default function AdminPage() {
     );
   }
 
+  const hasDrawn = gameState.drawn.length > 0;
+
   return (
     <div className="flex flex-col h-screen">
-      {/* Sticky header: mode selector + code + undo */}
+      {/* Sticky header: mode selector + code */}
       <header className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-zinc-900 border-b border-zinc-800 px-3 py-2">
         <ModeSelector currentMode={gameState.mode} onModeChange={setMode} />
-        <div className="flex items-center gap-3">
-          {gameState.code && (
+        {gameState.code && (
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-[9px] uppercase tracking-widest text-zinc-500">Código pantalla</span>
             <span className="font-mono font-black text-lg tracking-widest text-white">
               {String(gameState.code)}
             </span>
-          )}
-          <UndoButton
-            disabled={gameState.drawn.length === 0}
-            onUndo={undoCard}
-          />
-        </div>
+          </div>
+        )}
       </header>
 
       {/* Search bar */}
@@ -50,7 +48,7 @@ export default function AdminPage() {
         />
       </div>
 
-      {/* Card count + session controls */}
+      {/* Card count + controls */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs text-zinc-400">
         <span>
           Cartas cantadas:{" "}
@@ -59,13 +57,22 @@ export default function AdminPage() {
         </span>
         <div className="flex gap-2">
           <HoldButton
+            label="↩ Deshacer"
+            onConfirm={undoCard}
+            disabled={!hasDrawn}
+            ariaLabel="Deshacer última carta (mantén presionado)"
+            className={hasDrawn ? "bg-amber-700 text-amber-100 hover:bg-amber-600" : "bg-zinc-800 text-zinc-600 cursor-not-allowed"}
+            holdClassName="bg-amber-500 text-white"
+            fillClassName="bg-amber-300"
+          />
+          <HoldButton
             label="⟳ Limpiar"
             onConfirm={clearBoard}
-            disabled={gameState.drawn.length === 0}
+            disabled={!hasDrawn}
             ariaLabel="Limpiar tablero (mantén presionado)"
-            className={gameState.drawn.length === 0 ? "bg-zinc-800 text-zinc-600 cursor-not-allowed" : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"}
-            holdClassName="bg-zinc-500 text-white"
-            fillClassName="bg-zinc-400"
+            className={hasDrawn ? "bg-blue-700 text-blue-100 hover:bg-blue-600" : "bg-zinc-800 text-zinc-600 cursor-not-allowed"}
+            holdClassName="bg-blue-500 text-white"
+            fillClassName="bg-blue-300"
           />
           <button
             onClick={() => {
@@ -73,7 +80,7 @@ export default function AdminPage() {
                 newGame();
               }
             }}
-            className="rounded px-2 py-0.5 bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
+            className="rounded-lg px-3 py-1.5 text-xs font-bold bg-green-700 text-green-100 hover:bg-green-600 transition-colors"
           >
             Nueva partida
           </button>

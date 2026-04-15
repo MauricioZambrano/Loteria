@@ -1,10 +1,10 @@
 export type GameMode =
-  | "libre"           // Free play — no specific win condition
-  | "fila"            // Any row
-  | "columna"         // Any column
-  | "diagonal"        // Any diagonal
-  | "esquinas"        // 4 corners
-  | "loteria";        // Full blackout
+  | "libre"
+  | "fila"
+  | "columna"
+  | "diagonal"
+  | "esquinas"
+  | "loteria";
 
 export const GAME_MODE_LABELS: Record<GameMode, string> = {
   libre:    "Libre",

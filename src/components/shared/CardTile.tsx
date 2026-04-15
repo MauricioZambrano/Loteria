@@ -48,6 +48,9 @@ export function CardTile({
       {/* Card image */}
       {!imgError ? (
         <div className={["relative w-full", isSmall ? "h-10" : "h-14"].join(" ")}>
+          <span className="absolute top-0.5 left-0.5 z-10 text-[9px] font-bold leading-none tabular-nums text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+            {card.id}
+          </span>
           <Image
             src={getCardImagePath(card)}
             alt={card.name}
