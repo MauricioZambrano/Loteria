@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Card } from "@/lib/cards";
+import Image from "next/image";
+import { Card, getCardImagePath } from "@/lib/cards";
 
 interface CurrentCardProps {
   card: Card | null;
 }
 
 export function CurrentCard({ card }: CurrentCardProps) {
-  // Track previous card ID so we can animate on change
   const [displayCard, setDisplayCard] = useState<Card | null>(card);
   const [animating, setAnimating] = useState(false);
   const prevIdRef = useRef<number | null>(card?.id ?? null);
@@ -40,32 +40,24 @@ export function CurrentCard({ card }: CurrentCardProps) {
   return (
     <div
       className={[
-        "flex flex-col items-center justify-center gap-3 transition-all duration-150",
+        "flex flex-col items-center justify-center transition-all duration-150",
         animating ? "opacity-0 scale-95" : "opacity-100 scale-100",
       ].join(" ")}
     >
-      {/* Card */}
-      <div className="relative w-56 h-80 sm:w-64 sm:h-96 md:w-72 md:h-[420px] lg:w-80 lg:h-[480px] rounded-2xl border-4 border-yellow-400 bg-zinc-900 flex flex-col overflow-hidden shadow-2xl shadow-yellow-400/20">
-        {/* Decorative top band */}
-        <div className="bg-yellow-400 py-1.5 text-center">
-          <span className="text-zinc-900 font-black text-sm tracking-widest uppercase">
-            Lotería
-          </span>
-        </div>
-
-        {/* Card number + name */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 p-4">
-          <span className="text-zinc-500 text-sm font-mono">#{displayCard.id}</span>
-          <span className="text-white font-black text-3xl sm:text-4xl text-center leading-tight">
+      <div className="relative w-56 h-80 sm:w-64 sm:h-96 md:w-72 md:h-[420px] lg:w-80 lg:h-[480px] rounded-2xl border-4 border-yellow-400 overflow-hidden shadow-2xl shadow-yellow-400/20">
+        <Image
+          src={getCardImagePath(displayCard)}
+          alt={displayCard.name}
+          fill
+          className="object-cover"
+          priority
+          sizes="(max-width: 640px) 224px, (max-width: 768px) 256px, (max-width: 1024px) 288px, 320px"
+        />
+        {/* Name overlay at bottom */}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent pt-6 pb-2 px-2 text-center">
+          <p className="text-white font-black text-xl sm:text-2xl leading-tight drop-shadow">
             {displayCard.name}
-          </span>
-        </div>
-
-        {/* Decorative bottom band */}
-        <div className="bg-yellow-400 py-1.5 text-center">
-          <span className="text-zinc-900 font-black text-sm tracking-widest uppercase">
-            ¡Buena suerte!
-          </span>
+          </p>
         </div>
       </div>
     </div>
