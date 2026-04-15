@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CurrentCard } from "@/components/display/CurrentCard";
 import { DrawnHistory } from "@/components/display/DrawnHistory";
 import { ModeBanner } from "@/components/display/ModeBanner";
@@ -9,28 +10,17 @@ import { getLastDrawn } from "@/lib/gameState";
 import { CARD_BY_ID } from "@/lib/cards";
 import { getSupabase, TABLE_NAME } from "@/lib/supabase";
 
-const DISPLAY_SESSION_KEY = "loteria_display_session_id";
+// Inner component — reads ?session= from the URL
+function DisplayContent() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session"); // null = no session yet
 
-function getSavedDisplaySession(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(DISPLAY_SESSION_KEY);
-}
-
-export default function DisplayPage() {
-  const [displaySessionId, setDisplaySessionId] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Read localStorage only after hydration to avoid server/client mismatch
-  useEffect(() => {
-    setDisplaySessionId(getSavedDisplaySession());
-    setIsInitializing(false);
-  }, []);
-
-  // Pass null while awaiting code so the hook skips fetching
-  const { gameState, isLoading } = useGameState(displaySessionId ?? null);
+  // null = display waiting for code; string = display subscribed to session
+  const { gameState, isLoading } = useGameState(sessionId ?? null);
 
   async function handleCodeSubmit(e: FormEvent) {
     e.preventDefault();
@@ -55,24 +45,19 @@ export default function DisplayPage() {
       return;
     }
 
-    localStorage.setItem(DISPLAY_SESSION_KEY, data.id);
-    setDisplaySessionId(data.id);
+    // Put the session UUID in the URL — this is now the source of truth.
+    // Navigating to /display?session=<uuid> will auto-connect on any reload.
+    window.history.pushState(null, "", `?session=${data.id}`);
+    // Trigger a re-render by forcing a location change React picks up via
+    // useSearchParams (Next.js patches pushState to fire router events).
   }
 
   function handleExit() {
-    localStorage.removeItem(DISPLAY_SESSION_KEY);
-    setDisplaySessionId(null);
-    setCodeInput("");
-    setCodeError("");
-  }
-
-
-  if (isInitializing) {
-    return <div className="flex h-screen items-center justify-center bg-zinc-950" />;
+    window.history.pushState(null, "", "?");
   }
 
   // Code entry screen
-  if (!displaySessionId) {
+  if (!sessionId) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 gap-8 px-6">
         <div className="text-center">
@@ -145,5 +130,15 @@ export default function DisplayPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Suspense boundary required by Next.js when useSearchParams is used in a
+// Client Component — prevents the prerender from stalling on dynamic params.
+export default function DisplayPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-zinc-950" />}>
+      <DisplayContent />
+    </Suspense>
   );
 }

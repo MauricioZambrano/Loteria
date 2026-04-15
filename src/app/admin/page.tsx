@@ -1,18 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CardGrid } from "@/components/admin/CardGrid";
 import { ModeSelector } from "@/components/admin/ModeSelector";
 import { HoldButton } from "@/components/shared/HoldButton";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useGameState } from "@/hooks/useGameState";
+import { getSupabase, TABLE_NAME } from "@/lib/supabase";
 
-export default function AdminPage() {
-  const { gameState, isLoading, setGameState } = useGameState();
-  const { drawCard, undoCard, setMode, newGame, clearBoard } = useAdmin(gameState, setGameState);
+async function createSession(): Promise<string> {
+  const code = Math.floor(100000 + Math.random() * 900000);
+  const { data } = await getSupabase()
+    .from(TABLE_NAME)
+    .insert({ drawn: [], mode: "libre", code })
+    .select("id")
+    .single();
+  if (!data) throw new Error("Failed to create session");
+  return data.id;
+}
+
+function AdminContent() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session");
+  const creatingRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  if (isLoading) {
+  // No session in URL yet — create one and push it in
+  useEffect(() => {
+    if (sessionId || creatingRef.current) return;
+    creatingRef.current = true;
+    createSession().then((id) => {
+      window.history.pushState(null, "", `?session=${id}`);
+    });
+  }, [sessionId]);
+
+  // Pass null while creating so the hook waits, pass the UUID once known
+  const { gameState, isLoading, setGameState } = useGameState(sessionId ?? null);
+  const { drawCard, undoCard, setMode, newGame, clearBoard } = useAdmin(gameState, setGameState);
+
+  async function handleNewGame() {
+    if (!confirm("¿Iniciar una nueva partida? Se perderá el progreso actual.")) return;
+    const newId = await newGame();
+    if (newId) window.history.pushState(null, "", `?session=${newId}`);
+  }
+
+  if (!sessionId || isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <p className="text-zinc-400 text-lg">Cargando...</p>
@@ -75,11 +108,7 @@ export default function AdminPage() {
             fillClassName="bg-blue-300"
           />
           <button
-            onClick={() => {
-              if (confirm("¿Iniciar una nueva partida? Se perderá el progreso actual.")) {
-                newGame();
-              }
-            }}
+            onClick={handleNewGame}
             className="rounded-lg px-3 py-1.5 text-xs font-bold bg-green-700 text-green-100 hover:bg-green-600 transition-colors"
           >
             Nueva partida
@@ -101,5 +130,17 @@ export default function AdminPage() {
         />
       </main>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-zinc-400 text-lg">Cargando...</p>
+      </div>
+    }>
+      <AdminContent />
+    </Suspense>
   );
 }

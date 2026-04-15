@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getSupabase, CHANNEL_NAME, TABLE_NAME } from "@/lib/supabase";
+import { getSupabase, getChannelName, TABLE_NAME } from "@/lib/supabase";
 import {
   GameState,
   EMPTY_GAME_STATE,
@@ -30,16 +30,17 @@ interface UseGameStateReturn {
 }
 
 // targetSessionId controls fetch/subscribe behaviour:
-//   undefined  → admin mode: use localStorage session (or fetch latest)
+//   undefined  → admin mode: use localStorage session (or wait for useAdmin to create one)
 //   null       → display waiting for code: skip fetch, stay loading=false
-//   string     → display with known session: fetch that session, filter broadcasts
+//   string     → display with known session: fetch that session, subscribe to its channel
 export function useGameState(targetSessionId?: string | null): UseGameStateReturn {
   const [gameState, setGameState] = useState<GameState>(EMPTY_GAME_STATE);
   const [isLoading, setIsLoading] = useState(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  // Track which sessionId we're currently subscribed to to avoid double-subscribing
+  const subscribedToRef = useRef<string | null>(null);
 
   async function fetchAndSync() {
-    // Display is waiting for the user to enter the code — nothing to fetch yet
     if (targetSessionId === null) {
       setIsLoading(false);
       return;
@@ -51,21 +52,19 @@ export function useGameState(targetSessionId?: string | null): UseGameStateRetur
     if (sessionId) {
       query = query.eq("id", sessionId);
     } else {
-      // Admin: no saved ID yet — fall back to most recent session
-      query = query.order("updated_at", { ascending: false });
+      // Admin: no saved ID yet — wait for useAdmin.initSession to create one
+      setIsLoading(false);
+      return;
     }
 
     const { data } = await query.limit(1).maybeSingle();
 
     if (!data) {
-      // If we had a stale saved ID that no longer exists, clear it so a
-      // fresh session can be created by useAdmin on the next render.
       if (targetSessionId === undefined && getSavedSessionId()) clearSessionId();
       setIsLoading(false);
       return;
     }
 
-    // Only persist to admin localStorage when not using an explicit targetSessionId
     if (targetSessionId === undefined) saveSessionId(data.id);
 
     setGameState({
@@ -78,22 +77,25 @@ export function useGameState(targetSessionId?: string | null): UseGameStateRetur
     setIsLoading(false);
   }
 
-  function subscribe() {
-    if (targetSessionId === null) return;
+  function subscribeToSession(sessionId: string) {
+    if (subscribedToRef.current === sessionId) return;
 
-    const channel = getSupabase().channel(CHANNEL_NAME, {
+    // Tear down any existing subscription before switching sessions
+    if (channelRef.current) {
+      getSupabase().removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    subscribedToRef.current = sessionId;
+
+    const channel = getSupabase().channel(getChannelName(sessionId), {
       config: { broadcast: { self: true } },
     });
 
     channel.on("broadcast", { event: "state_update" }, ({ payload }) => {
       const state = payload as GameState;
-
-      // Display: ignore broadcasts meant for other sessions
-      if (typeof targetSessionId === "string" && state.sessionId !== targetSessionId) return;
-
-      // Admin: keep localStorage up to date with the current session
+      // Keep admin localStorage in sync with the active session
       if (targetSessionId === undefined && state.sessionId) saveSessionId(state.sessionId);
-
       setGameState(state);
     });
 
@@ -106,8 +108,9 @@ export function useGameState(targetSessionId?: string | null): UseGameStateRetur
     channelRef.current = channel;
   }
 
+  // Fetch on mount and whenever the display's target session changes
   useEffect(() => {
-    fetchAndSync().then(() => subscribe());
+    fetchAndSync();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && targetSessionId !== null) {
@@ -121,11 +124,20 @@ export function useGameState(targetSessionId?: string | null): UseGameStateRetur
       if (channelRef.current) {
         getSupabase().removeChannel(channelRef.current);
         channelRef.current = null;
+        subscribedToRef.current = null;
       }
     };
-  // Re-run when targetSessionId changes (display enters the code)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetSessionId]);
+
+  // Subscribe to the session-scoped channel as soon as we know the sessionId.
+  // This handles both the normal fetch path AND the admin bootstrap path where
+  // useAdmin.initSession calls setGameState directly (before any fetch result).
+  useEffect(() => {
+    if (!gameState.sessionId) return;
+    subscribeToSession(gameState.sessionId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState.sessionId]);
 
   return { gameState, isLoading, setGameState };
 }
