@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CardGrid } from "@/components/admin/CardGrid";
 import { ModeSelector } from "@/components/admin/ModeSelector";
 import { UndoButton } from "@/components/admin/UndoButton";
@@ -9,6 +10,7 @@ import { useGameState } from "@/hooks/useGameState";
 export default function AdminPage() {
   const { gameState, isLoading } = useGameState();
   const { drawCard, undoCard, setMode, newGame } = useAdmin(gameState);
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (isLoading) {
     return (
@@ -28,6 +30,17 @@ export default function AdminPage() {
           onUndo={undoCard}
         />
       </header>
+
+      {/* Search bar */}
+      <div className="px-3 py-1.5 bg-zinc-900 border-b border-zinc-800">
+        <input
+          type="search"
+          placeholder="Buscar carta..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-md bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+        />
+      </div>
 
       {/* Game ID + card count */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs text-zinc-400">
@@ -68,6 +81,7 @@ export default function AdminPage() {
               : null
           }
           onCardClick={drawCard}
+          searchQuery={searchQuery}
         />
       </main>
     </div>

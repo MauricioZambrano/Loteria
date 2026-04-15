@@ -10,6 +10,8 @@ interface CardTileProps {
   isLastDrawn: boolean;
   onClick?: () => void;
   size?: "sm" | "md";
+  isHighlighted?: boolean;
+  isDimmed?: boolean;
 }
 
 export function CardTile({
@@ -18,6 +20,8 @@ export function CardTile({
   isLastDrawn,
   onClick,
   size = "md",
+  isHighlighted,
+  isDimmed,
 }: CardTileProps) {
   const [imgError, setImgError] = useState(false);
   const isSmall = size === "sm";
@@ -34,6 +38,10 @@ export function CardTile({
           ? "border-yellow-400 bg-yellow-400/10 ring-2 ring-yellow-400"
           : isDrawn
           ? "border-zinc-700 bg-zinc-800 opacity-40 cursor-not-allowed"
+          : isHighlighted
+          ? "border-blue-400 bg-blue-400/10 ring-2 ring-blue-400 hover:bg-blue-400/20 active:scale-95 cursor-pointer"
+          : isDimmed
+          ? "border-zinc-700 bg-zinc-800 opacity-30 cursor-pointer"
           : "border-zinc-600 bg-zinc-800 hover:bg-zinc-700 hover:border-zinc-400 active:scale-95 cursor-pointer",
       ].join(" ")}
     >
@@ -44,6 +52,7 @@ export function CardTile({
             src={getCardImagePath(card)}
             alt={card.name}
             fill
+            loading="eager"
             className={["object-contain", isDrawn && !isLastDrawn ? "grayscale" : ""].join(" ")}
             onError={() => setImgError(true)}
             sizes="80px"
