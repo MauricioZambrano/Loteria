@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import { getSupabase, CHANNEL_NAME, TABLE_NAME } from "@/lib/supabase";
+import { clearSessionId, saveSessionId } from "@/hooks/useGameState";
 import {
   GameState,
   GameMode,
@@ -59,6 +60,7 @@ interface UseAdminReturn {
   drawCard: (cardId: number) => void;
   undoCard: () => void;
   setMode: (mode: GameMode) => void;
+  newGame: () => Promise<void>;
 }
 
 export function useAdmin(gameState: GameState): UseAdminReturn {
@@ -83,5 +85,31 @@ export function useAdmin(gameState: GameState): UseAdminReturn {
     persistAndBroadcast(next);
   }, []);
 
-  return { drawCard, undoCard, setMode };
+  const newGame = useCallback(async () => {
+    clearSessionId();
+    const db = getSupabase();
+    const { data } = await db
+      .from(TABLE_NAME)
+      .insert({ drawn: [], mode: "libre" })
+      .select("id")
+      .single();
+
+    if (!data) return;
+    saveSessionId(data.id);
+
+    const freshState: GameState = {
+      sessionId: data.id,
+      drawn: [],
+      mode: "libre",
+      updatedAt: new Date().toISOString(),
+    };
+
+    getChannel().send({
+      type: "broadcast",
+      event: "state_update",
+      payload: freshState,
+    });
+  }, []);
+
+  return { drawCard, undoCard, setMode, newGame };
 }

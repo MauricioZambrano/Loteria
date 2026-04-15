@@ -8,6 +8,21 @@ import {
 } from "@/lib/gameState";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+const SESSION_STORAGE_KEY = "loteria_session_id";
+
+export function getSavedSessionId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(SESSION_STORAGE_KEY);
+}
+
+export function saveSessionId(id: string): void {
+  localStorage.setItem(SESSION_STORAGE_KEY, id);
+}
+
+export function clearSessionId(): void {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
 interface UseGameStateReturn {
   gameState: GameState;
   isLoading: boolean;
@@ -20,12 +35,17 @@ export function useGameState(): UseGameStateReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   async function fetchAndSync() {
-    const { data, error } = await getSupabase()
-      .from(TABLE_NAME)
-      .select("*")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .single();
+    const savedId = getSavedSessionId();
+    let query = getSupabase().from(TABLE_NAME).select("*");
+
+    // If we have a saved session ID, fetch that specific session
+    if (savedId) {
+      query = query.eq("id", savedId);
+    } else {
+      query = query.order("updated_at", { ascending: false });
+    }
+
+    const { data, error } = await query.limit(1).single();
 
     if (error || !data) {
       // No session yet — keep empty state, admin will create one on first draw
@@ -33,6 +53,7 @@ export function useGameState(): UseGameStateReturn {
       return;
     }
 
+    saveSessionId(data.id);
     setGameState({
       sessionId: data.id,
       drawn: data.drawn ?? [],
@@ -43,10 +64,14 @@ export function useGameState(): UseGameStateReturn {
   }
 
   function subscribe() {
-    const channel = getSupabase().channel(CHANNEL_NAME);
+    const channel = getSupabase().channel(CHANNEL_NAME, {
+      config: { broadcast: { self: true } },
+    });
 
     channel.on("broadcast", { event: "state_update" }, ({ payload }) => {
-      setGameState(payload as GameState);
+      const state = payload as GameState;
+      if (state.sessionId) saveSessionId(state.sessionId);
+      setGameState(state);
     });
 
     channel.subscribe((status) => {

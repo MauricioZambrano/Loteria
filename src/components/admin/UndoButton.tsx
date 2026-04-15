@@ -16,8 +16,10 @@ export function UndoButton({ disabled, onUndo }: UndoButtonProps) {
   const rafRef = useRef<number | null>(null);
   const firedRef = useRef(false);
 
-  function startHold() {
+  function startHold(e: React.PointerEvent<HTMLButtonElement>) {
     if (disabled) return;
+    // Capture pointer so onPointerLeave doesn't fire if finger drifts slightly
+    e.currentTarget.setPointerCapture(e.pointerId);
     setHolding(true);
     firedRef.current = false;
     startTimeRef.current = Date.now();
@@ -54,7 +56,7 @@ export function UndoButton({ disabled, onUndo }: UndoButtonProps) {
 
   return (
     <button
-      onPointerDown={startHold}
+      onPointerDown={(e) => startHold(e)}
       onPointerUp={cancelHold}
       onPointerLeave={cancelHold}
       disabled={disabled}
@@ -76,7 +78,7 @@ export function UndoButton({ disabled, onUndo }: UndoButtonProps) {
         />
       )}
       <span className="relative z-10">
-        {holding ? "Soltando..." : "↩ Deshacer"}
+        {holding ? "Aguanta..." : "↩ Deshacer"}
       </span>
     </button>
   );

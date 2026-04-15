@@ -8,7 +8,7 @@ import { useGameState } from "@/hooks/useGameState";
 
 export default function AdminPage() {
   const { gameState, isLoading } = useGameState();
-  const { drawCard, undoCard, setMode } = useAdmin(gameState);
+  const { drawCard, undoCard, setMode, newGame } = useAdmin(gameState);
 
   if (isLoading) {
     return (
@@ -29,11 +29,33 @@ export default function AdminPage() {
         />
       </header>
 
-      {/* Card count */}
-      <div className="px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs text-zinc-400">
-        Cartas cantadas:{" "}
-        <span className="font-bold text-zinc-200">{gameState.drawn.length}</span>
-        {" / 54"}
+      {/* Game ID + card count */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs text-zinc-400">
+        <span>
+          Cartas cantadas:{" "}
+          <span className="font-bold text-zinc-200">{gameState.drawn.length}</span>
+          {" / 54"}
+        </span>
+        <div className="flex items-center gap-2">
+          {gameState.sessionId && (
+            <span className="font-mono text-zinc-500">
+              ID:{" "}
+              <span className="text-zinc-300">
+                {gameState.sessionId.slice(0, 8).toUpperCase()}
+              </span>
+            </span>
+          )}
+          <button
+            onClick={() => {
+              if (confirm("¿Iniciar una nueva partida? Se perderá el progreso actual.")) {
+                newGame();
+              }
+            }}
+            className="rounded px-2 py-0.5 bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
+          >
+            Nueva partida
+          </button>
+        </div>
       </div>
 
       {/* Card grid */}
