@@ -27,11 +27,19 @@ export function CurrentCard({ card }: CurrentCardProps) {
 
   if (!displayCard) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 h-full">
-        <div className="w-56 h-80 rounded-2xl border-2 border-dashed border-zinc-700 flex items-center justify-center">
-          <p className="text-zinc-600 text-xl text-center px-4">
-            Esperando primera carta...
-          </p>
+      <div className="flex flex-col items-center justify-center">
+        <div className="relative w-56 h-80 sm:w-64 sm:h-96 md:w-72 md:h-[420px] lg:w-80 lg:h-[480px] rounded-2xl border-8 border-red-600 overflow-hidden shadow-2xl shadow-red-600/30">
+          {/* Number badge */}
+          <span className="absolute top-2 left-2.5 z-10 text-2xl font-black text-black">
+            0
+          </span>
+          <Image
+            src="/cruzRojaLogo.jpeg"
+            alt="La Cruz Roja Mexicana"
+            fill
+            className="object-cover"
+            priority
+          />
         </div>
       </div>
     );

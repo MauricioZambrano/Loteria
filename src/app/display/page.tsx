@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { CurrentCard } from "@/components/display/CurrentCard";
 import { DrawnHistory } from "@/components/display/DrawnHistory";
 import { ModeBanner } from "@/components/display/ModeBanner";
@@ -109,8 +110,20 @@ function DisplayContent() {
     <div className="flex flex-col h-screen bg-zinc-950 overflow-hidden">
       <ModeBanner mode={gameState.mode} />
 
-      <main className="flex-1 flex items-center justify-center px-4 py-2 min-h-0">
+      <main className="relative flex-1 flex items-center justify-center px-4 py-2 min-h-0">
         <CurrentCard card={currentCard} />
+        <div className={[
+          "absolute top-4 right-4 transition-opacity duration-[2000ms]",
+          gameState.drawn.length > 0 ? "opacity-90" : "opacity-0",
+        ].join(" ")}>
+          <Image
+            src="/cruzRojaLogo.jpeg"
+            alt="Cruz Roja"
+            width={100}
+            height={125}
+            className="rounded-md"
+          />
+        </div>
       </main>
 
       <footer className="flex flex-col gap-1 px-4 py-3 bg-zinc-900 border-t border-zinc-800">
